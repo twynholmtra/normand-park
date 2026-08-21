@@ -1,6 +1,6 @@
 {
-  "name": "Park Tree Map",
-  "short_name": "Park Trees",
+  "name": "Normand Park Tree Map",
+  "short_name": "Normand Park",
   "description": "A tree map for our park.",
   "start_url": "./",
   "scope": "./",
