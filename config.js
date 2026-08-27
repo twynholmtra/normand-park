@@ -18,7 +18,7 @@ const CONTACT_EMAIL    = 'info@fulhamcemeteryfriends.org.uk';
 
 // Optional. Your park or Friends-group website. Shown as a link in the
 // Info panel. Leave as '' to hide.
-const WEBSITE_URL      = 'https://park-treemap.fulhamcemeteryfriends.org.uk/';
+const WEBSITE_URL      = 'https://parktreemap.org/';
 
 // — Your Google Sheet —
 // The long ID between /d/ and /edit in the spreadsheet URL.
