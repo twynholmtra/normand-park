@@ -1979,14 +1979,19 @@
     };
 
     for (const tree of trees) {
+      // Condition/Form counts always reflect the true total (see
+      // isRefineExcluded) — everything else here is a plain narrowing
+      // filter, so its count should match what "Refine tree count"
+      // currently excludes from the headline total.
+      if (tree['Condition']) bump(condBuckets, tree['Condition']);
+      if (tree['Form'])      bump(formBuckets, tree['Form']);
+      if (isRefineExcluded(tree)) continue;
       const sci   = tree['Scientific name'];
       const com   = tree['Common name'];
       const short = tree['Short name'];
       if (sci)   sciCounts[sci]     = (sciCounts[sci]     || 0) + 1;
       if (com)   commonCounts[com]  = (commonCounts[com]  || 0) + 1;
       if (short) shortCounts[short] = (shortCounts[short] || 0) + 1;
-      if (tree['Condition']) bump(condBuckets, tree['Condition']);
-      if (tree['Form'])      bump(formBuckets, tree['Form']);
       for (const tag of parseTags(tree['Tags'])) {
         bump(isNewTag(tag) ? newTagBuckets : tagBuckets, tag);
       }
@@ -2048,15 +2053,18 @@
     showIf('filter-section-forms',      Object.keys(formBuckets).length   > 0);
 
     // Insert "Non-native (hide)" filter after the Native checkbox, and a
-    // "Hide self-sown" filter after the Self-sown checkbox.
-    const nonNativeCount = trees.filter(t => {
+    // "Hide self-sown" filter after the Self-sown checkbox. Both are
+    // exclude-style toggles like "Refine tree count", so their counts
+    // should reflect what's currently excluded from the headline total too.
+    const countableTrees = trees.filter(t => !isRefineExcluded(t));
+    const nonNativeCount = countableTrees.filter(t => {
       const tags = parseTags(t['Tags']);
       return !tags.some(tag => /\bnative\b/i.test(tag));
     }).length;
     const selfSownCb = [...document.querySelectorAll('#filter-tags .filter-tag')]
       .find(cb => /\bself.sown\b/i.test(cb.value));
     if (selfSownCb) {
-      const hideSelfSownCount = trees.filter(t => {
+      const hideSelfSownCount = countableTrees.filter(t => {
         const tags = parseTags(t['Tags']);
         return !tags.some(tag => /\bself.sown\b/i.test(tag));
       }).length;
@@ -2142,6 +2150,15 @@
     Object.assign(excludeFilters, JSON.parse(localStorage.getItem(EXCLUDE_FILTERS_KEY) || '{}'));
   } catch (e) {}
 
+  // Whether a tree is currently hidden from the tree-count total by a
+  // "Refine tree count" exclude setting (e.g. the default Exclude Dead).
+  // Condition/Form counts deliberately ignore this — checking "Dead" or
+  // "Shrub" auto-disables the conflicting exclude setting (see
+  // conflictsWhen above), so their counts should reflect the true total.
+  function isRefineExcluded(tree) {
+    return EXCLUDE_OPTIONS.some(opt => excludeFilters[opt.key] && opt.match(tree));
+  }
+
   function matchesFilters(tree) {
     const sciFilter    = document.getElementById('filter-sci').value;
     const commonFilter = document.getElementById('filter-common').value;
@@ -2201,7 +2218,7 @@
       const show = matchesFilters(tree);
       if (show) {
         if (!map.hasLayer(marker)) marker.addTo(map);
-        if (!EXCLUDE_OPTIONS.some(opt => excludeFilters[opt.key] && opt.match(tree))) count++;
+        if (!isRefineExcluded(tree)) count++;
       } else {
         if (map.hasLayer(marker)) marker.remove();
         const tooltip = marker.getTooltip();
