@@ -1463,7 +1463,7 @@
     <div id="lightbox-date"></div>
     <img id="lightbox-img" src="" referrerpolicy="no-referrer" alt="Tree photo" draggable="false" onclick="toggleLightboxZoom(event)"
          onload="document.getElementById('lightbox').classList.remove('loading')"
-         onerror="document.getElementById('lightbox').classList.remove('loading')"/>
+         onerror="if (!retryImgLoad(this)) document.getElementById('lightbox').classList.remove('loading')"/>
     <div id="lightbox-bar">
       <button class="nav" id="lightbox-prev" onclick="stepLightbox(-1)">&#8249;</button>
       <a id="lightbox-open" href="" target="_blank" rel="noopener" referrerpolicy="no-referrer">
@@ -1831,6 +1831,22 @@
     return GITHUB_PHOTOS_BASE_URL + rel;
   }
 
+  // raw.githubusercontent.com intermittently returns a transient error (seen
+  // as sporadic 503s) even though the file exists — an <img> never retries a
+  // failed load on its own, so one hiccup leaves a permanently broken photo
+  // until the whole page is reloaded. Retry a couple of times with a short
+  // backoff before giving up. Returns true if a retry was scheduled, false
+  // once attempts are exhausted (caller should treat that as a final failure).
+  function retryImgLoad(img, maxAttempts = 2) {
+    const attempt = (parseInt(img.dataset.retryAttempt || '0', 10)) + 1;
+    if (attempt > maxAttempts) return false;
+    img.dataset.retryAttempt = attempt;
+    const base = img.dataset.retryBaseSrc || img.src.split('?')[0];
+    img.dataset.retryBaseSrc = base;
+    setTimeout(() => { img.src = base + '?retry=' + attempt; }, 500 * attempt);
+    return true;
+  }
+
   function parsePhotos(photoStr) {
     if (!photoStr) return [];
     return photoStr.split(',').map(s => s.trim()).filter(Boolean);
@@ -1895,7 +1911,7 @@
         const deleteOverlay = showDelete
           ? `<button type="button" class="photo-delete" title="Remove this photo" onclick="event.stopPropagation(); deletePhotoFromTree('${refAttr}', '${pathAttr}'); return false;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`
           : '';
-        html += `<div class="photo-thumb-wrap"><a class="photo-thumb-link" href="#" data-photos="${resolvedAttr}" data-index="${i}" onclick="openLightbox(JSON.parse(this.dataset.photos), +this.dataset.index); return false;"><img src="${thumb}" loading="lazy" referrerpolicy="no-referrer" alt="Tree photo"/></a>${deleteOverlay}</div>`;
+        html += `<div class="photo-thumb-wrap"><a class="photo-thumb-link" href="#" data-photos="${resolvedAttr}" data-index="${i}" onclick="openLightbox(JSON.parse(this.dataset.photos), +this.dataset.index); return false;"><img src="${thumb}" loading="lazy" referrerpolicy="no-referrer" alt="Tree photo" onerror="retryImgLoad(this)"/></a>${deleteOverlay}</div>`;
       });
       if (canAddPhoto) {
         html += `<button type="button" class="photo-add-slot" title="Add a photo to this tree" onclick="addPhotoToExistingTree('${refAttr}'); return false;"><span class="photo-add-slot-icon">+📷</span><span class="photo-add-slot-label">Add photo</span></button>`;
@@ -2761,6 +2777,8 @@
     const img = document.getElementById('lightbox-img');
     lbResetZoom();
     document.getElementById('lightbox').classList.add('loading');
+    delete img.dataset.retryAttempt;
+    delete img.dataset.retryBaseSrc;
     img.src = large;
     const dateEl = document.getElementById('lightbox-date');
     dateEl.classList.remove('visible');
