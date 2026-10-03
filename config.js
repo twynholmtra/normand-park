@@ -11,7 +11,7 @@
 // PARK_NAME is just the park's name (e.g. 'Lillie Park'). The app appends
 // " tree map" where it needs the full title.
 const PARK_NAME        = 'Normand Park';
-const PARK_DESCRIPTION = 'Normand Park is large busy open space in the east of the borough of Hammersmith & Fulham.';
+const PARK_DESCRIPTION = 'Normand Park, opened 1952, is large busy open space in the east of the borough of Hammersmith & Fulham.';
 // Optional. Leave as '' to hide the email contact from the Info panel
 // and the feedback "Send email instead" link.
 const CONTACT_EMAIL    = 'info@fulhamcemeteryfriends.org.uk';
